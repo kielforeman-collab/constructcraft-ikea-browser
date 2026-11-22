@@ -39,16 +39,16 @@ function M.classify(path)
     return "furniture", "IFCFURNITURE"
 end
 
---- Parse a single array-encoded row from data/catalog-N.json into a structured record.
+----- Parse a single array-encoded row from data/catalog-N.json into a structured record.
 function M.parse_row(row)
-    local id = tostring(row[1] or "")
-    local name = tostring(row[2] or "")
-    local type_name = tostring(row[3] or "")
+    local id = type(row[1]) == "string" and row[1] or ""
+    local name = type(row[2]) == "string" and row[2] or ""
+    local type_name = type(row[3]) == "string" and row[3] or ""
     local path = type(row[4]) == "table" and row[4] or {}
-    local variant = tostring(row[5] or "")
+    local variant = type(row[5]) == "string" and row[5] or ""
     local image = type(row[6]) == "string" and row[6] or ""
     local bytes = tonumber(row[8]) or 0
-    local hash = tostring(row[9] or "")
+    local hash = type(row[9]) == "string" and row[9] or ""
     local dims = type(row[10]) == "table" and row[10] or {}
     local colors = type(row[11]) == "table" and row[11] or {}
     local product_url = type(row[12]) == "string" and row[12] or ""
@@ -114,7 +114,9 @@ local function load_catalog()
                     items[#items + 1] = item
                     by_id[item.id] = item
                     for _, c in ipairs(item.colors) do
-                        color_set[c] = true
+                        if type(c) == "string" and c ~= "" then
+                            color_set[c] = true
+                        end
                     end
                 end
             end
@@ -127,8 +129,8 @@ local function load_catalog()
     table.sort(colors)
     catalog_state = {
         rev = rev,
-        snapshot = manifest.snapshot or "",
-        categories = manifest.categories or {},
+        snapshot = type(manifest.snapshot) == "string" and manifest.snapshot or "",
+        categories = type(manifest.categories) == "table" and manifest.categories or {},
         colors = colors,
         items = items,
         by_id = by_id,
@@ -137,7 +139,7 @@ local function load_catalog()
 end
 
 local function path_starts_with(path, prefix_code)
-    if not prefix_code or prefix_code == "" then
+    if type(prefix_code) ~= "string" or prefix_code == "" then
         return true
     end
     for _, seg in ipairs(path) do
@@ -149,7 +151,7 @@ local function path_starts_with(path, prefix_code)
 end
 
 local function has_color(colors, wanted)
-    if not wanted or wanted == "" then
+    if type(wanted) ~= "string" or wanted == "" then
         return true
     end
     for _, c in ipairs(colors) do
@@ -161,16 +163,20 @@ local function has_color(colors, wanted)
 end
 
 local function fits_dimensions(dims, max_w, max_d, max_h)
-    if max_w and dims.width and dims.width > max_w then return false end
-    if max_d and dims.depth and dims.depth > max_d then return false end
-    if max_h and dims.height and dims.height > max_h then return false end
+    local w = type(dims.width) == "number" and dims.width or nil
+    local d = type(dims.depth) == "number" and dims.depth or nil
+    local h = type(dims.height) == "number" and dims.height or nil
+    if max_w and w and w > max_w then return false end
+    if max_d and d and d > max_d then return false end
+    if max_h and h and h > max_h then return false end
     return true
 end
 
 function M.filter_items(items, query)
-    local text = tostring(query.text or ""):lower():match("^%s*(.-)%s*$")
-    local category = query.category
-    local color = query.color
+    local raw_text = type(query.text) == "string" and query.text or ""
+    local text = raw_text:lower():match("^%s*(.-)%s*$")
+    local category = type(query.category) == "string" and query.category or nil
+    local color = type(query.color) == "string" and query.color or nil
     local max_w = tonumber(query.max_width)
     local max_d = tonumber(query.max_depth)
     local max_h = tonumber(query.max_height)
@@ -265,9 +271,9 @@ ccad.catalog {
         }
         if item.variant ~= "" then props.Variant = item.variant end
         if item.product_url ~= "" then props.ProductUrl = item.product_url end
-        if item.dimensions.width then props.CatalogWidth = item.dimensions.width end
-        if item.dimensions.depth then props.CatalogDepth = item.dimensions.depth end
-        if item.dimensions.height then props.CatalogHeight = item.dimensions.height end
+        if type(item.dimensions.width) == "number" then props.CatalogWidth = item.dimensions.width end
+        if type(item.dimensions.depth) == "number" then props.CatalogDepth = item.dimensions.depth end
+        if type(item.dimensions.height) == "number" then props.CatalogHeight = item.dimensions.height end
         return {
             command = "gltf_component_load",
             args = {
