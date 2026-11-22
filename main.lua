@@ -73,14 +73,17 @@ function M.parse_row(row)
     }
 end
 
-local function fetch_json_cached(url, cache_key)
-    local cached = ccad.http.cached(cache_key)
-    if not cached then
-        cached = ccad.http.download(url, cache_key, { max_bytes = 16 * 1024 * 1024 })
+local function fetch_json_cached(url, cache_key, max_bytes)
+    local limit = max_bytes or (16 * 1024 * 1024)
+    local raw = ccad.http.read_cached(cache_key, { max_bytes = limit })
+    if not raw then
+        ccad.http.download(url, cache_key, { max_bytes = limit })
+        raw = ccad.http.read_cached(cache_key, { max_bytes = limit })
     end
-    -- Read via http.get if not cached? No, download already wrote it; for JSON text,
-    -- fetch_text uses http.get (bounded) when not yet loaded in memory.
-    return cached
+    if not raw then
+        error("failed to read cached catalog file: " .. cache_key)
+    end
+    return ccad.json.decode(raw)
 end
 
 local function load_catalog()
@@ -88,15 +91,22 @@ local function load_catalog()
         return catalog_state
     end
     local prefix, rev = base_prefix()
-    local manifest_body = ccad.http.get(prefix .. "/data/manifest.json", { max_bytes = 4 * 1024 * 1024 })
-    local manifest = ccad.json.decode(manifest_body)
+    local safe_rev = rev:gsub("[^a-zA-Z0-9._-]", "_")
+    local manifest = fetch_json_cached(
+        prefix .. "/data/manifest.json",
+        "catalog/" .. safe_rev .. "/manifest.json",
+        4 * 1024 * 1024
+    )
     local items = {}
     local by_id = {}
     local color_set = {}
     local chunks = manifest.chunks or {}
     for _, chunk_name in ipairs(chunks) do
-        local body = ccad.http.get(prefix .. "/data/" .. chunk_name, { max_bytes = 16 * 1024 * 1024 })
-        local rows = ccad.json.decode(body)
+        local rows = fetch_json_cached(
+            prefix .. "/data/" .. chunk_name,
+            "catalog/" .. safe_rev .. "/" .. chunk_name,
+            16 * 1024 * 1024
+        )
         if type(rows) == "table" then
             for _, row in ipairs(rows) do
                 local item = M.parse_row(row)
