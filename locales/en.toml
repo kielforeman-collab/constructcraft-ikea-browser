@@ -1,0 +1,8 @@
+plugin-name = "IKEA Browser"
+plugin-desc = "Browse and import 36,000+ IKEA 3D furniture models from the T-K-233/ikea-furniture Hugging Face dataset."
+catalog-label = "IKEA"
+catalog-desc = "IKEA 3D furniture catalog (T-K-233/ikea-furniture snapshot 2026-10-28). Product names, images, and 3D models originate from IKEA; see each item's website link for current pricing."
+set-rev-title = "Dataset revision"
+set-rev-desc = "Git revision or pinned commit SHA on Hugging Face (default: main)."
+set-url-title = "Dataset base URL"
+set-url-desc = "HTTPS base URL for /resolve/<rev>/ files."

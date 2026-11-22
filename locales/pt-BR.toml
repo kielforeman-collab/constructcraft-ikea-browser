@@ -1,0 +1,8 @@
+plugin-name = "Navegador IKEA"
+plugin-desc = "Navegue e importe mais de 36.000 modelos 3D de móveis IKEA do conjunto de dados T-K-233/ikea-furniture no Hugging Face."
+catalog-label = "IKEA"
+catalog-desc = "Catálogo 3D IKEA (snapshot T-K-233/ikea-furniture de 2026-10-28). Nomes, imagens e modelos 3D pertencem à IKEA; acesse o link do produto para preços atuais."
+set-rev-title = "Revisão do dataset"
+set-rev-desc = "Revisão Git ou commit SHA fixado no Hugging Face (padrão: main)."
+set-url-title = "URL base do dataset"
+set-url-desc = "URL HTTPS base para os arquivos /resolve/<rev>/."

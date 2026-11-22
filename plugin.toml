@@ -1,0 +1,32 @@
+id = "ikea_browser"
+name = "%plugin-name%"
+version = "0.1.0"
+api = 3
+description = "%plugin-desc%"
+authors = ["ConstructCraft Community"]
+license = "GPL-3.0-or-later"
+homepage = "https://huggingface.co/datasets/T-K-233/ikea-furniture"
+main = "main.lua"
+permissions = ["network"]
+allowed_hosts = [
+    "huggingface.co",
+    "*.huggingface.co",
+    "*.hf.co",
+]
+
+[[catalogs]]
+id = "ikea"
+label = "%catalog-label%"
+description = "%catalog-desc%"
+
+[settings.dataset_rev]
+type = "string"
+title = "%set-rev-title%"
+description = "%set-rev-desc%"
+default = "main"
+
+[settings.base_url]
+type = "string"
+title = "%set-url-title%"
+description = "%set-url-desc%"
+default = "https://huggingface.co/datasets/T-K-233/ikea-furniture/resolve"
