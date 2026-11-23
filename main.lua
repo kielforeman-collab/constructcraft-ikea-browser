@@ -39,7 +39,7 @@ function M.classify(path)
     return "furniture", "IFCFURNITURE"
 end
 
------ Parse a single array-encoded row from data/catalog-N.json into a structured record.
+--- Parse a single array-encoded row from data/catalog-N.json into a structured record.
 function M.parse_row(row)
     local id = type(row[1]) == "string" and row[1] or ""
     local name = type(row[2]) == "string" and row[2] or ""
@@ -233,7 +233,7 @@ ccad.catalog {
             snapshot = st.snapshot,
             categories = cats,
             colors = ccad.array(st.colors),
-            notice = "Product names, images, and 3D models originate from IKEA (snapshot " .. st.snapshot .. ").",
+            notice = "",
         }
     end,
     search = function(query)

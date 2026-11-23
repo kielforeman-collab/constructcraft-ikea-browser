@@ -50,3 +50,15 @@ end
 function test_plugin_loads_with_api_v3()
     ccad.test.ok(ccad.api >= 3, "expected plugin API >= 3")
 end
+
+function test_json_null_handling()
+    local decoded = ccad.json.decode('{"category":null,"color":null,"text":"","max_width":null}')
+    -- mlua represents JSON null as truthy light userdata (ccad.null), not nil.
+    ccad.test.ok(decoded.category == ccad.null, "expected JSON null to decode to ccad.null")
+    local category = type(decoded.category) == "string" and decoded.category or nil
+    local color = type(decoded.color) == "string" and decoded.color or nil
+    local max_w = tonumber(decoded.max_width)
+    ccad.test.eq(category, nil)
+    ccad.test.eq(color, nil)
+    ccad.test.eq(max_w, nil)
+end
