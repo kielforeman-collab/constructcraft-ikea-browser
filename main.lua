@@ -214,24 +214,66 @@ function M.filter_items(items, query)
     return { total = #matches, items = page }
 end
 
+local function top_categories(st)
+    local cats = ccad.array()
+    for _, c in ipairs(st.categories) do
+        if type(c.path) == "table" and #c.path == 1 then
+            cats[#cats + 1] = {
+                id = c.path[1],
+                name = c.name,
+                count = c.count,
+            }
+        end
+    end
+    return cats
+end
+
+local function normalize_id(raw)
+    return tostring(raw or ""):gsub("[^0-9]", "")
+end
+
+local function prepare_load_args(item_id)
+    local st = load_catalog()
+    local clean = normalize_id(item_id)
+    local item = st.by_id[clean] or st.by_id[tostring(item_id or "")]
+    if not item then
+        error("unknown IKEA item id: " .. tostring(item_id))
+    end
+    local prefix = base_prefix()
+    local model_url = prefix .. "/raw/" .. item.id:sub(1, 2) .. "/" .. item.id .. "/model.glb"
+    local cache_key = "models/" .. item.hash:sub(1, 2) .. "/" .. item.hash .. ".glb"
+    local local_path = ccad.http.download(model_url, cache_key, {
+        sha256 = item.hash,
+        max_bytes = 64 * 1024 * 1024,
+    })
+    local props = {
+        ArticleNumber = item.article,
+        ProductName = item.name,
+        TypeName = item.type_name,
+        ModelSha256 = item.hash,
+    }
+    if item.variant ~= "" then props.Variant = item.variant end
+    if item.product_url ~= "" then props.ProductUrl = item.product_url end
+    if type(item.dimensions.width) == "number" then props.CatalogWidth = item.dimensions.width end
+    if type(item.dimensions.depth) == "number" then props.CatalogDepth = item.dimensions.depth end
+    if type(item.dimensions.height) == "number" then props.CatalogHeight = item.dimensions.height end
+    return item, {
+        path = local_path,
+        name = item.name .. " " .. item.article,
+        kind = item.kind,
+        ifc_class = item.ifc_class,
+        properties = { Pset_IkeaProduct = props },
+    }
+end
+
 ccad.catalog {
     id = "ikea",
     load = function()
         local st = load_catalog()
-        local cats = ccad.array()
-        for _, c in ipairs(st.categories) do
-            if type(c.path) == "table" and #c.path == 1 then
-                cats[#cats + 1] = {
-                    id = c.path[1],
-                    name = c.name,
-                    count = c.count,
-                }
-            end
-        end
         return {
             total = #st.items,
             snapshot = st.snapshot,
-            categories = cats,
+            categories = top_categories(st),
             colors = ccad.array(st.colors),
             notice = "",
         }
@@ -251,39 +293,119 @@ ccad.catalog {
         return ccad.http.download(prefix .. "/" .. rel, rel, { max_bytes = 2 * 1024 * 1024 })
     end,
     prepare = function(item_id)
-        local st = load_catalog()
-        local item = st.by_id[item_id]
-        if not item then
-            error("unknown IKEA item id: " .. tostring(item_id))
-        end
-        local prefix = base_prefix()
-        local model_url = prefix .. "/raw/" .. item.id:sub(1, 2) .. "/" .. item.id .. "/model.glb"
-        local cache_key = "models/" .. item.hash:sub(1, 2) .. "/" .. item.hash .. ".glb"
-        local local_path = ccad.http.download(model_url, cache_key, {
-            sha256 = item.hash,
-            max_bytes = 64 * 1024 * 1024,
-        })
-        local props = {
-            ArticleNumber = item.article,
-            ProductName = item.name,
-            TypeName = item.type_name,
-            ModelSha256 = item.hash,
-        }
-        if item.variant ~= "" then props.Variant = item.variant end
-        if item.product_url ~= "" then props.ProductUrl = item.product_url end
-        if type(item.dimensions.width) == "number" then props.CatalogWidth = item.dimensions.width end
-        if type(item.dimensions.depth) == "number" then props.CatalogDepth = item.dimensions.depth end
-        if type(item.dimensions.height) == "number" then props.CatalogHeight = item.dimensions.height end
+        local _, load_args = prepare_load_args(item_id)
         return {
             command = "gltf_component_load",
-            args = {
-                path = local_path,
-                name = item.name .. " " .. item.article,
-                kind = item.kind,
-                ifc_class = item.ifc_class,
-                properties = { Pset_IkeaProduct = props },
-            },
+            args = load_args,
         }
+    end,
+}
+
+-- MCP & CLI commands (`ikea_browser__categories`, `ikea_browser__search`, `ikea_browser__place`)
+
+ccad.command {
+    name = "categories",
+    kind = "query",
+    description = "List top-level IKEA 3D furniture catalog categories with their codes and item counts.",
+    params = {
+        type = "object",
+        properties = {},
+    },
+    run = function()
+        local st = load_catalog()
+        return {
+            total = #st.items,
+            snapshot = st.snapshot,
+            categories = top_categories(st),
+        }
+    end,
+}
+
+ccad.command {
+    name = "search",
+    kind = "query",
+    description = "Search the IKEA 3D furniture catalog (36,447 models) by name, article number, category, color, or maximum dimensions in meters.",
+    params = {
+        type = "object",
+        properties = {
+            text = { type = "string", description = "Search query (product name, type, variant, or article number like 'KALLAX' or '002.758.48')." },
+            category = { type = "string", description = "Top-level category code from ikea_browser__categories (e.g. 'st001', 'fu002', 'li001', 'ba001')." },
+            color = { type = "string", description = "Color code filter." },
+            max_width = { type = "number", description = "Maximum width in meters." },
+            max_depth = { type = "number", description = "Maximum depth in meters." },
+            max_height = { type = "number", description = "Maximum height in meters." },
+            offset = { type = "integer", description = "Pagination offset (default 0)." },
+            limit = { type = "integer", description = "Maximum items to return, 1..50 (default 20)." },
+        },
+    },
+    run = function(args)
+        local st = load_catalog()
+        local q = {
+            text = args.text,
+            category = args.category,
+            color = args.color,
+            max_width = args.max_width,
+            max_depth = args.max_depth,
+            max_height = args.max_height,
+            offset = args.offset or 0,
+            limit = math.min(50, math.max(1, math.floor(tonumber(args.limit) or 20))),
+        }
+        return M.filter_items(st.items, q)
+    end,
+}
+
+ccad.command {
+    name = "place",
+    kind = "edit",
+    description = "Download (SHA-256 verified), load, and optionally place an IKEA 3D furniture model into the project with BIM category and IFC Pset_IkeaProduct metadata.",
+    params = {
+        type = "object",
+        required = { "id" },
+        properties = {
+            id = { type = "string", description = "IKEA 8-digit item ID or dotted article number (e.g. '00275848' or '002.758.48')." },
+            position = {
+                type = "array",
+                items = { type = "number" },
+                minItems = 2,
+                maxItems = 2,
+                description = "Optional [x, y] plan position in meters. If provided, places an instance; if omitted, only loads the component type.",
+            },
+            level = { type = "string", description = "Optional level name or ID (default: lowest level)." },
+            rotation = { type = "number", description = "Optional rotation in plan, in degrees (default 0)." },
+            base_offset = { type = "number", description = "Optional elevation offset above the level in meters (default 0)." },
+        },
+    },
+    run = function(args)
+        local item, load_args = prepare_load_args(args.id)
+        local loaded = ccad.run("gltf_component_load", load_args)
+        local type_id = loaded.types and loaded.types[1] or nil
+        local out = {
+            id = item.id,
+            article = item.article,
+            name = item.name,
+            component = loaded.component,
+            type_id = type_id,
+            faces = loaded.faces,
+            url = item.product_url,
+        }
+        if type(args.position) == "table" and type_id then
+            local place_args = {
+                type = type_id,
+                position = args.position,
+            }
+            if type(args.level) == "string" and args.level ~= "" then
+                place_args.level = args.level
+            end
+            if type(args.rotation) == "number" then
+                place_args.rotation = args.rotation
+            end
+            if type(args.base_offset) == "number" then
+                place_args.base_offset = args.base_offset
+            end
+            local placed = ccad.run("component_place", place_args)
+            out.element_id = placed.id
+        end
+        return out
     end,
 }
 

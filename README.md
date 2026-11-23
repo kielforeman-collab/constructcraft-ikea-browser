@@ -8,6 +8,22 @@ A ConstructCraft plugin (Plugin API 3) that adds an **IKEA** tab to the **Compon
 - Category, color, and dimension (W × D × H) filters.
 - Lazy thumbnail loading and SHA-256 verified, content-addressed GLB model caching.
 - Automatic BIM classification (`Furniture`, `Casework`, `Plumbing`, `Lighting`) and IFC property set (`Pset_IkeaProduct`) including a clickable link to the IKEA product page for current pricing and availability.
+- **MCP tools for AI agents:** Exposes `ikea_browser__categories`, `ikea_browser__search`, and `ikea_browser__place` when loaded with `ccad --plugins <plugins-folder> mcp`.
+
+## Using over MCP
+
+Point your MCP client (Muse, Claude Desktop, Claude Code, Cursor, etc.) at `ccad`:
+
+```json
+{
+  "mcpServers": {
+    "constructcraft": {
+      "command": "C:\\Program Files\\ConstructCraft\\ccad.exe",
+      "args": ["--plugins", "%APPDATA%\\ConstructCAD\\data\\plugins", "mcp", "--lang", "en"]
+    }
+  }
+}
+```
 
 ## Attribution & Copyright
 

@@ -62,3 +62,13 @@ function test_json_null_handling()
     ccad.test.eq(color, nil)
     ccad.test.eq(max_w, nil)
 end
+
+function test_mcp_commands_registered()
+    local found = {}
+    for _, cmd in ipairs(ccad.commands()) do
+        found[cmd.name] = cmd.kind
+    end
+    ccad.test.eq(found["ikea_browser__categories"], "query")
+    ccad.test.eq(found["ikea_browser__search"], "query")
+    ccad.test.eq(found["ikea_browser__place"], "edit")
+end
