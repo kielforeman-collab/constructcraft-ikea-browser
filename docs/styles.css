@@ -917,6 +917,113 @@ a:hover {
   line-height: 1.5;
 }
 
+/* MCP Section */
+.mcp-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: 32px;
+  align-items: start;
+}
+
+.mcp-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mcp-tool-row {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.mcp-tool-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.mcp-tool-head code {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.mcp-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+}
+
+.mcp-badge-edit {
+  background: var(--accent-cobalt-soft);
+  color: var(--accent-cobalt);
+}
+
+.mcp-tool-row p {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.mcp-code-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.mcp-code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border-hairline);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.mcp-code-head code {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--accent-cobalt);
+}
+
+.mcp-pre {
+  margin: 0;
+  padding: 18px 20px;
+  background: var(--bg-ink);
+  color: #e6ebf5;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  overflow-x: auto;
+}
+
+.mcp-footnote {
+  margin: 0;
+  padding: 12px 16px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-hairline);
+}
+
 /* Footer */
 .site-footer {
   padding: 48px 0 56px;
@@ -971,7 +1078,8 @@ a:hover {
 /* Responsive */
 @media (max-width: 960px) {
   .hero-grid,
-  .install-layout {
+  .install-layout,
+  .mcp-layout {
     grid-template-columns: 1fr;
   }
 

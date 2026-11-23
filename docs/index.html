@@ -40,6 +40,7 @@
       <nav class="nav-links" aria-label="Primary">
         <a href="#preview">Catalog Preview</a>
         <a href="#features">Capabilities</a>
+        <a href="#mcp">MCP Agents</a>
         <a href="#install">Install</a>
         <a href="https://github.com/kielforeman-collab/constructcraft-ikea-browser" target="_blank" rel="noopener">GitHub</a>
       </nav>
@@ -285,8 +286,71 @@
       </div>
     </section>
 
+    <!-- MCP for AI Agents -->
+    <section id="mcp" class="section">
+      <div class="container">
+        <div class="section-head reveal">
+          <p class="section-eyebrow">Model Context Protocol · New in v0.2.0</p>
+          <h2>Furnish BIM projects by prompt over MCP</h2>
+          <p>
+            Load IKEA Browser with ConstructCraft’s built-in <code>ccad mcp</code> server and any MCP-compatible AI client (Muse, Claude Desktop, Claude Code, Cursor) can search all 36,447 models and place real-scale furniture directly into your <code>.ccad</code> project.
+          </p>
+        </div>
+
+        <div class="mcp-layout reveal">
+          <div class="mcp-tools">
+            <div class="mcp-tool-row">
+              <div class="mcp-tool-head">
+                <code>ikea_browser__categories</code>
+                <span class="mcp-badge">query</span>
+              </div>
+              <p>Returns top-level IKEA catalog category codes and item counts for structured discovery.</p>
+            </div>
+            <div class="mcp-tool-row">
+              <div class="mcp-tool-head">
+                <code>ikea_browser__search</code>
+                <span class="mcp-badge">query</span>
+              </div>
+              <p>Filters 36,447 models by name, article number, category, color, or maximum <code>W × D × H</code> in meters.</p>
+            </div>
+            <div class="mcp-tool-row">
+              <div class="mcp-tool-head">
+                <code>ikea_browser__place</code>
+                <span class="mcp-badge mcp-badge-edit">edit</span>
+              </div>
+              <p>Downloads &amp; SHA-256-verifies the Draco GLB, loads it with <code>Pset_IkeaProduct</code> IFC metadata, and places it at <code>[x, y]</code> with rotation and level in one undo step.</p>
+            </div>
+          </div>
+
+          <div class="mcp-code-panel">
+            <div class="mcp-code-head">
+              <span>MCP Client Config (<code>ccad mcp</code>)</span>
+              <button type="button" id="copy-mcp-btn" class="copy-btn">Copy JSON</button>
+            </div>
+            <pre class="mcp-pre"><code id="mcp-config-code">{
+  "mcpServers": {
+    "constructcraft": {
+      "command": "C:\\Program Files\\ConstructCraft\\ccad.exe",
+      "args": [
+        "--plugins",
+        "%APPDATA%\\ConstructCAD\\data\\plugins",
+        "mcp",
+        "--lang",
+        "en"
+      ]
+    }
+  }
+}</code></pre>
+            <p class="mcp-footnote">
+              Works over stdio with isolated per-plugin cache read grants—no broad filesystem permission required.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Installation -->
-    <section id="install" class="section">
+    <section id="install" class="section section-alt">
       <div class="container">
         <div class="section-head reveal">
           <p class="section-eyebrow">Getting Started</p>

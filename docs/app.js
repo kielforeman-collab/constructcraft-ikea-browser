@@ -323,4 +323,21 @@ document.addEventListener("DOMContentLoaded", () => {
   initPreview();
   initOsTabs();
   initReveal();
+
+  const copyMcpBtn = document.getElementById("copy-mcp-btn");
+  const mcpCode = document.getElementById("mcp-config-code");
+  if (copyMcpBtn && mcpCode) {
+    copyMcpBtn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(mcpCode.textContent);
+        const orig = copyMcpBtn.textContent;
+        copyMcpBtn.textContent = "Copied";
+        setTimeout(() => {
+          copyMcpBtn.textContent = orig;
+        }, 1600);
+      } catch {
+        // Fallback ignored if clipboard permission denied
+      }
+    });
+  }
 });
