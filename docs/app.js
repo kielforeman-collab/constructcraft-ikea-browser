@@ -1,7 +1,5 @@
 // Interactive catalog preview & OS install switcher for IKEA Browser landing page
 
-const HF_BASE = "https://huggingface.co/datasets/T-K-233/ikea-furniture/resolve/main";
-
 const SAMPLE_ITEMS = [
   {
     id: "00275848",
@@ -15,7 +13,7 @@ const SAMPLE_ITEMS = [
     depth: 0.39,
     height: 1.465,
     kb: 50,
-    thumb: `${HF_BASE}/thumbnails/e8/e832894f4e2d0c14de1883ee.jpg`,
+    thumb: "assets/thumbs/00275848.jpg",
     url: "https://www.ikea.com/ie/en/p/kallax-shelving-unit-white-00275848/",
   },
   {
@@ -30,7 +28,7 @@ const SAMPLE_ITEMS = [
     depth: 0.32,
     height: 0.65,
     kb: 49,
-    thumb: `${HF_BASE}/thumbnails/8a/8a7163f7e8736d110b2c5256.jpg`,
+    thumb: "assets/thumbs/00243800.jpg",
     url: "https://www.ikea.com/us/en/p/hemnes-bench-with-shoe-storage-white-00243800/",
   },
   {
@@ -45,7 +43,7 @@ const SAMPLE_ITEMS = [
     depth: 0.26,
     height: 0.47,
     kb: 191,
-    thumb: `${HF_BASE}/thumbnails/d3/d33fc24772753396af564b8b.jpg`,
+    thumb: "assets/thumbs/00437704.jpg",
     url: "https://www.ikea.com/eg/en/p/uppvind-table-lamp-nickel-plated-white-00437704/",
   },
   {
@@ -60,7 +58,7 @@ const SAMPLE_ITEMS = [
     depth: 0.13,
     height: null,
     kb: 89,
-    thumb: `${HF_BASE}/thumbnails/f4/f4878eaba956849c6a9cc38c.jpg`,
+    thumb: "assets/thumbs/00393352.jpg",
     url: "https://www.ikea.com/se/en/p/voxnan-thermostatic-shower-mixer-chrome-plated-00393352/",
   },
   {
@@ -75,7 +73,7 @@ const SAMPLE_ITEMS = [
     depth: 0.49,
     height: 0.9,
     kb: 61,
-    thumb: `${HF_BASE}/thumbnails/85/85c42eda93de675f0c5a0e1c.jpg`,
+    thumb: "assets/thumbs/00211088.jpg",
     url: "https://www.ikea.com/us/en/p/stefan-chair-brown-black-00211088/",
   },
   {
@@ -90,7 +88,7 @@ const SAMPLE_ITEMS = [
     depth: 0.2,
     height: 0.64,
     kb: 155,
-    thumb: `${HF_BASE}/thumbnails/d4/d455c8d361e977eef333d111.jpg`,
+    thumb: "assets/thumbs/00245960.jpg",
     url: "https://www.ikea.cn/cn/en/p/besta-frame-black-brown-00245960/",
   },
   {
@@ -105,7 +103,7 @@ const SAMPLE_ITEMS = [
     depth: 0.58,
     height: 2.08,
     kb: 199,
-    thumb: `${HF_BASE}/thumbnails/b2/b2f83df9dc40a71ad77fbc52.jpg`,
+    thumb: "assets/thumbs/00298128.jpg",
     url: "https://www.ikea.com/ae/en/p/tyssedal-wardrobe-white-mirror-glass-00298128/",
   },
   {
@@ -120,7 +118,7 @@ const SAMPLE_ITEMS = [
     depth: 0.4,
     height: 0.79,
     kb: 363,
-    thumb: `${HF_BASE}/thumbnails/9c/9cb43eaacf420659715d2a72.jpg`,
+    thumb: "assets/thumbs/00165128.jpg",
     url: "https://www.ikea.com/au/en/p/taernoe-chair-outdoor-foldable-black-light-brown-stained-00165128/",
   },
 ];
@@ -192,7 +190,7 @@ function renderCatalog() {
         aria-pressed="${item.id === selectedId}"
       >
         <div class="item-thumb">
-          <img src="${item.thumb}" alt="${item.name} — ${item.type}" loading="lazy" />
+          <img src="${item.thumb}" alt="${item.name} — ${item.type}" />
         </div>
         <div class="item-name">${item.name}</div>
         <div class="item-sub">${item.type}</div>
@@ -208,7 +206,11 @@ function renderCatalog() {
   grid.querySelectorAll(".item-card").forEach((card) => {
     card.addEventListener("click", () => {
       selectedId = card.dataset.itemId;
-      renderCatalog();
+      grid.querySelectorAll(".item-card").forEach((c) => {
+        const isSel = c.dataset.itemId === selectedId;
+        c.classList.toggle("is-selected", isSel);
+        c.setAttribute("aria-pressed", String(isSel));
+      });
       renderInspector();
     });
   });
