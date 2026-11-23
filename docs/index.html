@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IKEA Browser for ConstructCraft — 36,447 BIM-Ready 3D Models</title>
+  <meta
+    name="description"
+    content="Browse, filter, and place 36,447 verified Draco-compressed IKEA 3D furniture models directly inside ConstructCraft with automatic BIM classification and IFC property sets."
+  />
+  <meta property="og:title" content="IKEA Browser for ConstructCraft" />
+  <meta
+    property="og:description"
+    content="36,447 verified 3D furniture models with pure-Rust Draco decoding, real-time filtering, and IFC metadata inside ConstructCraft."
+  />
+  <meta property="og:image" content="assets/hero-studio.jpg" />
+  <meta property="og:type" content="website" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#top" id="nav-brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Z" />
+            <path d="M12 12 4 7.5M12 12l8-4.5M12 12v9" />
+          </svg>
+        </span>
+        <span>IKEA Browser <span style="font-weight: 500; color: var(--text-muted);">for ConstructCraft</span></span>
+      </a>
+
+      <nav class="nav-links" aria-label="Primary">
+        <a href="#preview">Catalog Preview</a>
+        <a href="#features">Capabilities</a>
+        <a href="#install">Install</a>
+        <a href="https://github.com/kielforeman-collab/constructcraft-ikea-browser" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+
+      <a
+        id="header-download-btn"
+        class="header-cta"
+        href="https://github.com/kielforeman-collab/constructcraft-ikea-browser/releases/latest"
+        target="_blank"
+        rel="noopener"
+      >
+        Download v0.1.1
+      </a>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="container hero-grid">
+        <div>
+          <p class="hero-kicker">ConstructCraft Plugin API 3 · Open Source</p>
+          <h1>Real-scale IKEA 3D furniture, straight in your BIM library.</h1>
+          <p class="hero-lead">
+            Add an <strong>IKEA</strong> tab to ConstructCraft’s Component Library. Search 36,447 verified Draco-compressed GLB models by name, category, color, or meter dimensions—and drop them into plans with IFC metadata attached.
+          </p>
+
+          <div class="hero-actions">
+            <a
+              id="hero-download-plugin"
+              class="btn btn-primary"
+              href="https://github.com/kielforeman-collab/constructcraft-ikea-browser/releases/latest"
+              target="_blank"
+              rel="noopener"
+            >
+              Download Plugin (v0.1.1)
+            </a>
+            <a
+              id="hero-install-guide"
+              class="btn btn-secondary"
+              href="#install"
+            >
+              Get ConstructCraft Build
+            </a>
+          </div>
+
+          <div class="hero-metrics" aria-label="Catalog statistics">
+            <div>
+              <span class="metric-value">36,447</span>
+              <span class="metric-label">Verified GLB models</span>
+            </div>
+            <div>
+              <span class="metric-value">18,614</span>
+              <span class="metric-label">Cached product photos</span>
+            </div>
+            <div>
+              <span class="metric-value">Pure Rust</span>
+              <span class="metric-label">Native Draco decoder</span>
+            </div>
+          </div>
+        </div>
+
+        <figure class="hero-figure">
+          <img
+            src="assets/hero-studio.jpg"
+            alt="Isometric Scandinavian architectural room layout with shelving, sofa, pendant light, and dimension callouts"
+          />
+          <figcaption class="hero-caption">
+            <span>T-K-233/ikea-furniture · glTF 2.0 + KHR_draco_mesh_compression</span>
+            <span>SI Meters</span>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- Interactive Catalog Preview -->
+    <section id="preview" class="section">
+      <div class="container">
+        <div class="section-head reveal">
+          <p class="section-eyebrow">Interactive Preview</p>
+          <h2>Explore what loads inside Component Library</h2>
+          <p>
+            Sample items directly from the <code>T-K-233/ikea-furniture</code> dataset. Pick any piece to inspect the exact BIM category, IFC class, and <code>Pset_IkeaProduct</code> properties attached on import.
+          </p>
+        </div>
+
+        <div class="preview-shell reveal">
+          <div class="preview-toolbar">
+            <div class="preview-filters" role="group" aria-label="Filter by BIM category">
+              <button type="button" class="filter-btn is-active" data-kind="All">All categories</button>
+              <button type="button" class="filter-btn" data-kind="Furniture">Furniture</button>
+              <button type="button" class="filter-btn" data-kind="Casework">Casework</button>
+              <button type="button" class="filter-btn" data-kind="Lighting">Lighting</button>
+              <button type="button" class="filter-btn" data-kind="Plumbing">Plumbing</button>
+            </div>
+
+            <div class="search-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+              <input
+                id="preview-search"
+                class="search-input"
+                type="search"
+                placeholder="Search KALLAX, lamp, 002.758.48…"
+                aria-label="Search sample catalog items"
+              />
+            </div>
+          </div>
+
+          <div class="preview-body">
+            <div id="catalog-grid" class="catalog-grid" aria-live="polite"></div>
+
+            <aside class="inspector" aria-label="Selected component properties">
+              <div class="inspector-head">
+                <div>
+                  <h3 id="insp-name" class="inspector-title">KALLAX</h3>
+                  <p id="insp-subtitle" class="inspector-subtitle">Shelving unit — white</p>
+                </div>
+                <span id="insp-article" class="inspector-article">002.758.48</span>
+              </div>
+
+              <div class="inspector-photo">
+                <img id="insp-img" src="" alt="Selected IKEA item preview" />
+              </div>
+
+              <div class="pset-block">
+                <p class="pset-label">Pset_IkeaProduct &amp; BIM Mapping</p>
+                <table class="pset-table">
+                  <tbody>
+                    <tr>
+                      <th>ComponentKind</th>
+                      <td id="insp-kind">Casework</td>
+                    </tr>
+                    <tr>
+                      <th>IFC Class</th>
+                      <td id="insp-ifc">IFCFURNITURE</td>
+                    </tr>
+                    <tr>
+                      <th>Dimensions</th>
+                      <td id="insp-dims">W 0.42 m × D 0.39 m × H 1.47 m</td>
+                    </tr>
+                    <tr>
+                      <th>Model Payload</th>
+                      <td id="insp-size">50 KB (Draco GLB)</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="inspector-actions">
+                <a
+                  id="insp-url"
+                  class="btn btn-secondary btn-small"
+                  href="https://www.ikea.com/"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  Open on IKEA.com for live price ↗
+                </a>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Capabilities -->
+    <section id="features" class="section section-alt">
+      <div class="container">
+        <div class="section-head reveal">
+          <p class="section-eyebrow">Built for Architectural Workflows</p>
+          <h2>Fast local search, clean geometry, zero bloat</h2>
+          <p>
+            Engineered cleanly around ConstructCraft’s Plugin API 3—keeping IKEA endpoints entirely in the Lua plugin while giving core ConstructCraft reusable Draco decoding and catalog tooling.
+          </p>
+        </div>
+
+        <div class="spec-grid reveal">
+          <article class="spec-item">
+            <div class="spec-num">01 / GEOMETRY</div>
+            <h3>Native Pure-Rust Draco</h3>
+            <p>
+              Every GLB in the catalog uses <code>KHR_draco_mesh_compression</code>. ConstructCraft decodes compressed meshes natively in pure Rust with no C++ binaries or external CLI tools required.
+            </p>
+            <ul class="spec-list">
+              <li>Content-addressed SHA-256 disk cache</li>
+              <li>Verified against dataset hashes before load</li>
+              <li>Reusable component types per project</li>
+            </ul>
+          </article>
+
+          <article class="spec-item">
+            <div class="spec-num">02 / BIM &amp; IFC</div>
+            <h3>Structured BIM Metadata</h3>
+            <p>
+              Imported models automatically map to ConstructCraft component kinds and export cleanly to IFC with article numbers, dimensions, and clickable product links.
+            </p>
+            <ul class="spec-list">
+              <li>Furniture, Casework, Lighting, Plumbing</li>
+              <li>IFCFURNITURE / IFCLIGHTFIXTURE / IFCSANITARYTERMINAL</li>
+              <li>Clickable ProductUrl in Properties panel</li>
+            </ul>
+          </article>
+
+          <article class="spec-item">
+            <div class="spec-num">03 / SECURITY</div>
+            <h3>Host-Pinned &amp; Opt-In</h3>
+            <p>
+              Network access is disabled by default until you allow it in Manage → Plugins. Requests are strictly confined to Hugging Face hosts—no live price scraping or tracking.
+            </p>
+            <ul class="spec-list">
+              <li>HTTPS-only with redirect allowlist checks</li>
+              <li>Explicit opt-in per plugin in preferences</li>
+              <li>Direct ikea.com link for live pricing</li>
+            </ul>
+          </article>
+        </div>
+
+        <div class="arch-strip reveal" aria-label="Data flow overview">
+          <div class="arch-node">
+            <code>data/catalog-0..7.json</code>
+            <h4>1. Disk-Cached Index</h4>
+            <p>Downloaded once to your local plugin cache for instant offline-speed filtering.</p>
+          </div>
+          <div class="arch-node">
+            <code>ccad.catalog</code>
+            <h4>2. Native Library Tab</h4>
+            <p>Filter 36k+ items by text, article number, category, color, or max W × D × H.</p>
+          </div>
+          <div class="arch-node">
+            <code>sha256 + draco-core</code>
+            <h4>3. Verified Decode</h4>
+            <p>Downloads the selected GLB on demand, verifies its hash, and decodes Draco meshes.</p>
+          </div>
+          <div class="arch-node">
+            <code>gltf_component_load</code>
+            <h4>4. Place &amp; Export</h4>
+            <p>Places straight into 2D/3D views with full <code>Pset_IkeaProduct</code> IFC metadata.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Installation -->
+    <section id="install" class="section">
+      <div class="container">
+        <div class="section-head reveal">
+          <p class="section-eyebrow">Getting Started</p>
+          <h2>Up and running in two minutes</h2>
+          <p>
+            Because IKEA Browser uses Plugin API 3 and native Draco decoding, download both the latest plugin archive and the matching ConstructCraft release build.
+          </p>
+        </div>
+
+        <div class="install-layout reveal">
+          <div class="download-stack">
+            <div class="download-box">
+              <div class="download-box-head">
+                <h3>1. ConstructCraft (Plugin API 3)</h3>
+                <span class="version-tag">v0.14.0-ikea.2</span>
+              </div>
+              <p>
+                Pre-built installers for Windows (<code>.msi</code>), macOS Apple Silicon &amp; Intel (<code>.dmg</code>), and Linux (<code>.AppImage</code> / <code>.deb</code>).
+              </p>
+              <a
+                id="download-app-release"
+                class="btn btn-primary"
+                href="https://github.com/kielforeman-collab/constructcraft/releases/tag/v0.14.0-ikea.2"
+                target="_blank"
+                rel="noopener"
+              >
+                Download ConstructCraft Build ↗
+              </a>
+            </div>
+
+            <div class="download-box">
+              <div class="download-box-head">
+                <h3>2. IKEA Browser Plugin</h3>
+                <span class="version-tag">v0.1.1</span>
+              </div>
+              <p>
+                Lightweight Lua plugin package (<code>ikea_browser-v0.1.1.zip</code>, ~5 KB) with English &amp; Portuguese translations and SHA-256 verification.
+              </p>
+              <a
+                id="download-plugin-release"
+                class="btn btn-secondary"
+                href="https://github.com/kielforeman-collab/constructcraft-ikea-browser/releases/latest"
+                target="_blank"
+                rel="noopener"
+              >
+                Download ikea_browser-v0.1.1.zip ↗
+              </a>
+            </div>
+          </div>
+
+          <div class="steps-panel">
+            <div class="os-tabs" role="tablist" aria-label="Operating system">
+              <button type="button" class="os-tab is-active" data-os="windows" role="tab">Windows</button>
+              <button type="button" class="os-tab" data-os="macos" role="tab">macOS</button>
+              <button type="button" class="os-tab" data-os="linux" role="tab">Linux</button>
+            </div>
+
+            <ol class="step-list">
+              <li>
+                <div>
+                  <strong>Install ConstructCraft</strong> using <code id="os-asset-hint">constructcraft-v0.14.0-ikea.2-x86_64.msi</code> from the release page.
+                </div>
+              </li>
+              <li>
+                <div>
+                  <strong>Unzip the plugin</strong> into your ConstructCraft plugins folder (shown in <strong>Preferences → File Locations</strong>):
+                  <div class="path-snippet">
+                    <code id="os-plugin-path">%APPDATA%\ConstructCAD\data\plugins\ikea_browser\</code>
+                    <button type="button" id="copy-path-btn" class="copy-btn">Copy</button>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div>
+                  <strong>Enable network access</strong> inside ConstructCraft via <strong>Manage → Plugins → IKEA Browser → Allow it to access the network</strong>, then click Reload.
+                </div>
+              </li>
+              <li>
+                <div>
+                  <strong>Browse &amp; place:</strong> open <strong>Insert → Component Library</strong>, pick the <strong>IKEA</strong> tab, select any product, and click <strong>Load into Project</strong>.
+                </div>
+              </li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div>
+        <strong>IKEA Browser for ConstructCraft</strong>
+        <p class="footer-note">
+          Catalog index and models are fetched from the public
+          <a href="https://huggingface.co/datasets/T-K-233/ikea-furniture" target="_blank" rel="noopener">T-K-233/ikea-furniture</a>
+          Hugging Face dataset. Product names, images, and 3D models originate from IKEA. This community plugin is not affiliated with or endorsed by Inter IKEA Systems B.V.
+        </p>
+      </div>
+
+      <div class="footer-links">
+        <a href="https://github.com/kielforeman-collab/constructcraft-ikea-browser" target="_blank" rel="noopener">Plugin Repository</a>
+        <a href="https://github.com/kielforeman-collab/constructcraft/tree/feat/ikea-browser" target="_blank" rel="noopener">ConstructCraft Fork</a>
+        <a href="https://github.com/francisreboucas/constructcraft" target="_blank" rel="noopener">Upstream ConstructCraft</a>
+        <a href="https://huggingface.co/datasets/T-K-233/ikea-furniture" target="_blank" rel="noopener">Hugging Face Dataset</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
