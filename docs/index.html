@@ -104,10 +104,17 @@
         </div>
 
         <figure class="hero-figure">
-          <img
-            src="assets/hero-studio.jpg"
-            alt="Isometric Scandinavian architectural room layout with shelving, sofa, pendant light, and dimension callouts"
-          />
+          <picture>
+            <source srcset="assets/hero-studio.webp" type="image/webp" />
+            <img
+              src="assets/hero-studio.jpg"
+              width="1376"
+              height="768"
+              decoding="async"
+              fetchpriority="high"
+              alt="Isometric Scandinavian architectural room layout with shelving, sofa, pendant light, and dimension callouts"
+            />
+          </picture>
           <figcaption class="hero-caption">
             <span>T-K-233/ikea-furniture · glTF 2.0 + KHR_draco_mesh_compression</span>
             <span>SI Meters</span>
