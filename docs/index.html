@@ -237,7 +237,7 @@
             <ul class="spec-list">
               <li>O(1) article lookup &amp; 15× faster word search</li>
               <li>Off-thread JPEG decode + bounded 192-texture LRU</li>
-              <li>Zero per-frame UI clones &amp; on-demand pagination</li>
+              <li>Zero per-frame UI clones &amp; full 36k sparse virtualization</li>
             </ul>
           </article>
 
@@ -275,9 +275,9 @@
             <p>Disk-cached JSON loads into flat arrays with word, category, and O(1) article indexes.</p>
           </div>
           <div class="arch-node">
-            <code>Arc&lt;[T]&gt; + LRU</code>
+            <code>Sparse LRU</code>
             <h4>2. Zero-Stall Library UI</h4>
-            <p>Priority worker coalesces typing, decodes JPEGs off-thread, and pages 60 items at a time.</p>
+            <p>Priority worker coalesces typing/scrubbing, decodes JPEGs off-thread, and streams sparse 60-item pages.</p>
           </div>
           <div class="arch-node">
             <code>sha256 + draco-core</code>
@@ -372,7 +372,7 @@
             <div class="download-box">
               <div class="download-box-head">
                 <h3>1. ConstructCraft (Plugin API 3)</h3>
-                <span class="version-tag">v0.14.1-ikea.3</span>
+                <span class="version-tag">v0.14.1-ikea.4</span>
               </div>
               <p>
                 Pre-built installers for Windows (<code>.msi</code>), macOS Apple Silicon &amp; Intel (<code>.dmg</code>), and Linux (<code>.AppImage</code> / <code>.deb</code>).
@@ -380,7 +380,7 @@
               <a
                 id="download-app-release"
                 class="btn btn-primary"
-                href="https://github.com/kielforeman-collab/constructcraft/releases/tag/v0.14.1-ikea.3"
+                href="https://github.com/kielforeman-collab/constructcraft/releases/tag/v0.14.1-ikea.4"
                 target="_blank"
                 rel="noopener"
               >
@@ -418,7 +418,7 @@
             <ol class="step-list">
               <li>
                 <div>
-                  <strong>Install ConstructCraft</strong> using <code id="os-asset-hint">constructcraft-v0.14.1-ikea.3-x86_64.msi</code> from the release page.
+                  <strong>Install ConstructCraft</strong> using <code id="os-asset-hint">constructcraft-v0.14.1-ikea.4-x86_64.msi</code> from the release page.
                 </div>
               </li>
               <li>

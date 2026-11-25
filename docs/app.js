@@ -125,15 +125,15 @@ const SAMPLE_ITEMS = [
 
 const OS_CONFIG = {
   windows: {
-    assetHint: "constructcraft-v0.14.1-ikea.3-x86_64.msi (or .zip)",
+    assetHint: "constructcraft-v0.14.1-ikea.4-x86_64.msi (or .zip)",
     pluginPath: "%APPDATA%\\ConstructCAD\\data\\plugins\\ikea_browser\\",
   },
   macos: {
-    assetHint: "constructcraft-v0.14.1-ikea.3-aarch64-apple-darwin.dmg (Apple Silicon) or x86_64-apple-darwin.dmg",
+    assetHint: "constructcraft-v0.14.1-ikea.4-aarch64-apple-darwin.dmg (Apple Silicon) or x86_64-apple-darwin.dmg",
     pluginPath: "~/Library/Application Support/ConstructCAD/plugins/ikea_browser/",
   },
   linux: {
-    assetHint: "constructcraft-v0.14.1-ikea.3-x86_64.AppImage (or .deb / .tar.gz)",
+    assetHint: "constructcraft-v0.14.1-ikea.4-x86_64.AppImage (or .deb / .tar.gz)",
     pluginPath: "~/.local/share/ConstructCAD/plugins/ikea_browser/",
   },
 };
