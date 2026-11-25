@@ -222,65 +222,65 @@
 
         <div class="spec-grid reveal">
           <article class="spec-item">
-            <div class="spec-num">01 / GEOMETRY</div>
-            <h3>Native Pure-Rust Draco</h3>
+            <div class="spec-num">01 / PERFORMANCE</div>
+            <h3>Instant Search &amp; Smooth 60 FPS UI</h3>
             <p>
-              Every GLB in the catalog uses <code>KHR_draco_mesh_compression</code>. ConstructCraft decodes compressed meshes natively in pure Rust with no C++ binaries or external CLI tools required.
+              Built for 36,447 models without sluggishness: flat Structure-of-Arrays storage, an inverted word index, pooled TLS connections, and off-thread JPEG decoding keep the UI completely unblocked.
             </p>
             <ul class="spec-list">
-              <li>Content-addressed SHA-256 disk cache</li>
-              <li>Verified against dataset hashes before load</li>
-              <li>Reusable component types per project</li>
+              <li>O(1) article lookup &amp; 15× faster word search</li>
+              <li>Off-thread JPEG decode + bounded 192-texture LRU</li>
+              <li>Zero per-frame UI clones &amp; on-demand pagination</li>
             </ul>
           </article>
 
           <article class="spec-item">
-            <div class="spec-num">02 / BIM &amp; IFC</div>
-            <h3>Structured BIM Metadata</h3>
+            <div class="spec-num">02 / GEOMETRY &amp; BIM</div>
+            <h3>Pure-Rust Draco &amp; IFC Ready</h3>
             <p>
-              Imported models automatically map to ConstructCraft component kinds and export cleanly to IFC with article numbers, dimensions, and clickable product links.
+              Every <code>KHR_draco_mesh_compression</code> GLB decodes natively in pure Rust with no C++ binaries, mapping automatically to ConstructCraft component kinds and IFC property sets.
             </p>
             <ul class="spec-list">
-              <li>Furniture, Casework, Lighting, Plumbing</li>
-              <li>IFCFURNITURE / IFCLIGHTFIXTURE / IFCSANITARYTERMINAL</li>
-              <li>Clickable ProductUrl in Properties panel</li>
+              <li>Furniture, Casework, Lighting, Plumbing + IFC classes</li>
+              <li>Pset_IkeaProduct + clickable ikea.com ProductUrl</li>
+              <li>Automatic type reuse across repeated MCP placements</li>
             </ul>
           </article>
 
           <article class="spec-item">
             <div class="spec-num">03 / SECURITY</div>
-            <h3>Host-Pinned &amp; Opt-In</h3>
+            <h3>Hardened, Host-Pinned &amp; Opt-In</h3>
             <p>
-              Network access is disabled by default until you allow it in Manage → Plugins. Requests are strictly confined to Hugging Face hosts—no live price scraping or tracking.
+              Network access is disabled until explicitly granted in Manage → Plugins. Every URL, redirect, cache path, and SHA-256 hash is validated—with zero broad filesystem access required.
             </p>
             <ul class="spec-list">
-              <li>HTTPS-only with redirect allowlist checks</li>
-              <li>Explicit opt-in per plugin in preferences</li>
-              <li>Direct ikea.com link for live pricing</li>
+              <li>HTTPS-only with redirect allowlist &amp; // rejection</li>
+              <li>SHA-256 GLB verification &amp; symlink-safe cache writes</li>
+              <li>Strict ikea.com / ikea.cn URL &amp; JSON field validation</li>
             </ul>
           </article>
         </div>
 
         <div class="arch-strip reveal" aria-label="Data flow overview">
           <div class="arch-node">
-            <code>data/catalog-0..7.json</code>
-            <h4>1. Disk-Cached Index</h4>
-            <p>Downloaded once to your local plugin cache for instant offline-speed filtering.</p>
+            <code>SoA + by_word</code>
+            <h4>1. Indexed Local Cache</h4>
+            <p>Disk-cached JSON loads into flat arrays with word, category, and O(1) article indexes.</p>
           </div>
           <div class="arch-node">
-            <code>ccad.catalog</code>
-            <h4>2. Native Library Tab</h4>
-            <p>Filter 36k+ items by text, article number, category, color, or max W × D × H.</p>
+            <code>Arc&lt;[T]&gt; + LRU</code>
+            <h4>2. Zero-Stall Library UI</h4>
+            <p>Priority worker coalesces typing, decodes JPEGs off-thread, and pages 60 items at a time.</p>
           </div>
           <div class="arch-node">
             <code>sha256 + draco-core</code>
             <h4>3. Verified Decode</h4>
-            <p>Downloads the selected GLB on demand, verifies its hash, and decodes Draco meshes.</p>
+            <p>Pooled HTTPS downloads verify each GLB’s SHA-256 before native pure-Rust Draco decode.</p>
           </div>
           <div class="arch-node">
             <code>gltf_component_load</code>
             <h4>4. Place &amp; Export</h4>
-            <p>Places straight into 2D/3D views with full <code>Pset_IkeaProduct</code> IFC metadata.</p>
+            <p>Places into 2D/3D views (GUI or MCP) with full <code>Pset_IkeaProduct</code> IFC metadata.</p>
           </div>
         </div>
       </div>
