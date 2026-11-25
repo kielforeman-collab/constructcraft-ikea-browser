@@ -148,6 +148,7 @@ local function load_catalog()
     local by_category = {}
     local by_word = {}
     local color_set = {}
+    local seen = {}
     local n = 0
 
     local chunks = type(manifest.chunks) == "table" and manifest.chunks or {}
@@ -213,10 +214,9 @@ local function load_catalog()
                         end
 
                         -- Inverted word index for fast full-text lookup without sacrificing recall.
-                        local seen = {}
                         for word in blob:gmatch("[a-z0-9][a-z0-9][a-z0-9]+") do
-                            if not seen[word] then
-                                seen[word] = true
+                            if seen[word] ~= n then
+                                seen[word] = n
                                 local list = by_word[word]
                                 if not list then
                                     list = {}
