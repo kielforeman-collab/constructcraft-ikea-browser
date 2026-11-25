@@ -93,14 +93,12 @@ function M.parse_row(row)
     local colors = type(row[11]) == "table" and row[11] or {}
     local product_url = sanitize_ikea_url(row[12])
     local kind, ifc_class = M.classify(path)
-    local article = M.format_article(id)
     local w = type(dims.width) == "number" and dims.width or nil
     local d = type(dims.depth) == "number" and dims.depth or nil
     local h = type(dims.height) == "number" and dims.height or nil
-    local search_blob = (name .. " " .. type_name .. " " .. variant .. " " .. id .. " " .. article):lower()
+    local search_blob = (name .. " " .. type_name .. " " .. variant .. " " .. id):lower()
     return {
         id = id,
-        article = article,
         name = name,
         type_name = type_name,
         path = path,
@@ -108,7 +106,6 @@ function M.parse_row(row)
         image = image,
         bytes = bytes,
         hash = hash,
-        dimensions = dims,
         w = w,
         d = d,
         h = h,
@@ -216,7 +213,7 @@ local function has_color(colors, wanted)
     return false
 end
 
-function M.filter_items(items, query, by_category)
+function M.filter_items(items, query, by_category, by_id)
     local raw_text = type(query.text) == "string" and query.text or ""
     local text = raw_text:lower():match("^%s*(.-)%s*$")
     local has_text = text ~= ""
@@ -229,10 +226,14 @@ function M.filter_items(items, query, by_category)
     local offset = math.max(0, math.floor(tonumber(query.offset) or 0))
     local limit = math.min(200, math.max(1, math.floor(tonumber(query.limit) or 60)))
 
-    -- Fast path: use the prebuilt top-level category bucket when available.
+    -- Fast paths: O(1) exact article-number lookup via by_id, else top-level category bucket.
     local source = items
     local check_cat = category ~= nil
-    if category and by_category and by_category[category] then
+    if has_text and by_id and text:match("^%d%d%d%.?%d%d%d%.?%d%d$") then
+        local hit = by_id[text:gsub("%.", "")]
+        source = hit and { hit } or {}
+        has_text = false
+    elseif category and by_category and by_category[category] then
         source = by_category[category]
         check_cat = false
     end
@@ -263,14 +264,18 @@ function M.filter_items(items, query, by_category)
         if ok then
             total = total + 1
             if total > offset and total <= stop then
+                local dims = {}
+                if item.w then dims.width = item.w end
+                if item.d then dims.depth = item.d end
+                if item.h then dims.height = item.h end
                 page[#page + 1] = {
                     id = item.id,
                     name = item.name,
                     subtitle = item.variant ~= "" and (item.type_name .. " — " .. item.variant) or item.type_name,
                     kind = item.kind,
-                    article = item.article,
+                    article = M.format_article(item.id),
                     bytes = item.bytes,
-                    dimensions = item.dimensions,
+                    dimensions = dims,
                     colors = ccad.array(item.colors),
                     url = item.product_url,
                     has_thumbnail = item.image ~= "",
@@ -300,16 +305,22 @@ local function normalize_id(raw)
     return tostring(raw or ""):gsub("[^0-9]", "")
 end
 
-local function prepare_load_args(item_id)
+local function lookup_item(item_id)
     local st = load_catalog()
     local clean = normalize_id(item_id)
     local item = st.by_id[clean] or st.by_id[tostring(item_id or "")]
     if not item then
         error("unknown IKEA item id: " .. tostring(item_id))
     end
+    return item
+end
+
+local function prepare_load_args(item_id)
+    local item = lookup_item(item_id)
     if not is_valid_sha256(item.hash) then
         error("invalid model sha256 for IKEA item: " .. item.id)
     end
+    local article = M.format_article(item.id)
     local prefix = base_prefix()
     local model_url = prefix .. "/raw/" .. item.id:sub(1, 2) .. "/" .. item.id .. "/model.glb"
     local cache_key = "models/" .. item.hash:sub(1, 2) .. "/" .. item.hash .. ".glb"
@@ -318,7 +329,7 @@ local function prepare_load_args(item_id)
         max_bytes = 64 * 1024 * 1024,
     })
     local props = {
-        ArticleNumber = item.article,
+        ArticleNumber = article,
         ProductName = item.name,
         TypeName = item.type_name,
         ModelSha256 = item.hash,
@@ -330,7 +341,7 @@ local function prepare_load_args(item_id)
     if item.h then props.CatalogHeight = item.h end
     return item, {
         path = local_path,
-        name = item.name .. " " .. item.article,
+        name = item.name .. " " .. article,
         kind = item.kind,
         ifc_class = item.ifc_class,
         properties = { Pset_IkeaProduct = props },
@@ -351,7 +362,7 @@ ccad.catalog {
     end,
     search = function(query)
         local st = load_catalog()
-        return M.filter_items(st.items, query or {}, st.by_category)
+        return M.filter_items(st.items, query or {}, st.by_category, st.by_id)
     end,
     thumbnail = function(item_id)
         local st = load_catalog()
@@ -421,7 +432,7 @@ ccad.command {
             offset = args.offset or 0,
             limit = math.min(50, math.max(1, math.floor(tonumber(args.limit) or 20))),
         }
-        return M.filter_items(st.items, q, st.by_category)
+        return M.filter_items(st.items, q, st.by_category, st.by_id)
     end,
 }
 
@@ -447,18 +458,43 @@ ccad.command {
         },
     },
     run = function(args)
-        local item, load_args = prepare_load_args(args.id)
-        local loaded = ccad.run("gltf_component_load", load_args)
-        local type_id = loaded.types and loaded.types[1] or nil
+        local item = lookup_item(args.id)
+        local article = M.format_article(item.id)
+        local comp_name = item.name .. " " .. article
+
+        -- Reuse an already-loaded component type of the same IKEA article when present.
+        local type_id = nil
+        local faces = nil
+        local reused = false
+        local existing = ccad.run("types_list", { category = "component" })
+        if type(existing) == "table" then
+            for i = 1, #existing do
+                if existing[i].name == comp_name then
+                    type_id = existing[i].id
+                    reused = true
+                    break
+                end
+            end
+        end
+
+        if not type_id then
+            local _, load_args = prepare_load_args(item.id)
+            local loaded = ccad.run("gltf_component_load", load_args)
+            type_id = loaded.types and loaded.types[1] or nil
+            comp_name = loaded.component or comp_name
+            faces = loaded.faces
+        end
+
         local out = {
             id = item.id,
-            article = item.article,
+            article = article,
             name = item.name,
-            component = loaded.component,
+            component = comp_name,
             type_id = type_id,
-            faces = loaded.faces,
+            reused = reused,
             url = item.product_url,
         }
+        if faces then out.faces = faces end
         if type(args.position) == "table" and type_id then
             local place_args = {
                 type = type_id,
