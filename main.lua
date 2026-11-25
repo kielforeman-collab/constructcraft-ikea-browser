@@ -140,10 +140,16 @@ local function load_catalog()
         "catalog/" .. rev .. "/manifest.json",
         4 * 1024 * 1024
     )
-    local items = {}
+    -- Structure-of-Arrays (SoA) storage: avoids 36,447 hash-table allocations in Lua 5.4.
+    local ids, names, types_arr, variants = {}, {}, {}, {}
+    local paths, images, bytes_arr, hashes = {}, {}, {}, {}
+    local ws, ds, hs, colors_arr, urls, blobs = {}, {}, {}, {}, {}, {}
     local by_id = {}
     local by_category = {}
+    local by_word = {}
     local color_set = {}
+    local n = 0
+
     local chunks = type(manifest.chunks) == "table" and manifest.chunks or {}
     for _, chunk_name in ipairs(chunks) do
         if is_valid_chunk(chunk_name) then
@@ -153,23 +159,70 @@ local function load_catalog()
                 16 * 1024 * 1024
             )
             if type(rows) == "table" then
-                for _, row in ipairs(rows) do
-                    local item = M.parse_row(row)
-                    if item.id:match("^%d%d%d%d%d%d%d%d$") and is_valid_sha256(item.hash) then
-                        items[#items + 1] = item
-                        by_id[item.id] = item
-                        local top = item.path[1]
+                for r = 1, #rows do
+                    local row = rows[r]
+                    local id = type(row[1]) == "string" and row[1] or ""
+                    local hash = type(row[9]) == "string" and row[9] or ""
+                    if id:match("^%d%d%d%d%d%d%d%d$") and is_valid_sha256(hash) then
+                        n = n + 1
+                        local name = type(row[2]) == "string" and row[2] or ""
+                        local type_name = type(row[3]) == "string" and row[3] or ""
+                        local path = type(row[4]) == "table" and row[4] or {}
+                        local variant = type(row[5]) == "string" and row[5] or ""
+                        local image = sanitize_image_rel(row[6])
+                        local bytes = tonumber(row[8]) or 0
+                        local dims = type(row[10]) == "table" and row[10] or nil
+                        local colors = type(row[11]) == "table" and row[11] or {}
+                        local url = sanitize_ikea_url(row[12])
+                        local blob = (name .. " " .. type_name .. " " .. variant .. " " .. id):lower()
+
+                        ids[n] = id
+                        names[n] = name
+                        types_arr[n] = type_name
+                        variants[n] = variant
+                        paths[n] = path
+                        images[n] = image
+                        bytes_arr[n] = bytes
+                        hashes[n] = hash
+                        if dims then
+                            if type(dims.width) == "number" then ws[n] = dims.width end
+                            if type(dims.depth) == "number" then ds[n] = dims.depth end
+                            if type(dims.height) == "number" then hs[n] = dims.height end
+                        end
+                        colors_arr[n] = colors
+                        urls[n] = url
+                        blobs[n] = blob
+
+                        by_id[id] = n
+
+                        local top = path[1]
                         if type(top) == "string" and top ~= "" then
                             local bucket = by_category[top]
                             if not bucket then
                                 bucket = {}
                                 by_category[top] = bucket
                             end
-                            bucket[#bucket + 1] = item
+                            bucket[#bucket + 1] = n
                         end
-                        for _, c in ipairs(item.colors) do
+
+                        for ci = 1, #colors do
+                            local c = colors[ci]
                             if type(c) == "string" and c ~= "" then
                                 color_set[c] = true
+                            end
+                        end
+
+                        -- Inverted word index for fast full-text lookup without sacrificing recall.
+                        local seen = {}
+                        for word in blob:gmatch("[a-z0-9][a-z0-9][a-z0-9]+") do
+                            if not seen[word] then
+                                seen[word] = true
+                                local list = by_word[word]
+                                if not list then
+                                    list = {}
+                                    by_word[word] = list
+                                end
+                                list[#list + 1] = n
                             end
                         end
                     end
@@ -177,20 +230,37 @@ local function load_catalog()
             end
         end
     end
+
     local colors = {}
     for c in pairs(color_set) do
         colors[#colors + 1] = c
     end
     table.sort(colors)
+
     catalog_state = {
         prefix = prefix,
         rev = rev,
         snapshot = type(manifest.snapshot) == "string" and manifest.snapshot or "",
         categories = type(manifest.categories) == "table" and manifest.categories or {},
         colors = colors,
-        items = items,
+        n = n,
+        ids = ids,
+        names = names,
+        types = types_arr,
+        variants = variants,
+        paths = paths,
+        images = images,
+        bytes = bytes_arr,
+        hashes = hashes,
+        ws = ws,
+        ds = ds,
+        hs = hs,
+        colors_arr = colors_arr,
+        urls = urls,
+        blobs = blobs,
         by_id = by_id,
         by_category = by_category,
+        by_word = by_word,
     }
     return catalog_state
 end
@@ -213,7 +283,7 @@ local function has_color(colors, wanted)
     return false
 end
 
-function M.filter_items(items, query, by_category, by_id)
+function M.filter_state(st, query)
     local raw_text = type(query.text) == "string" and query.text or ""
     local text = raw_text:lower():match("^%s*(.-)%s*$")
     local has_text = text ~= ""
@@ -226,59 +296,88 @@ function M.filter_items(items, query, by_category, by_id)
     local offset = math.max(0, math.floor(tonumber(query.offset) or 0))
     local limit = math.min(200, math.max(1, math.floor(tonumber(query.limit) or 60)))
 
-    -- Fast paths: O(1) exact article-number lookup via by_id, else top-level category bucket.
-    local source = items
+    -- Pick the smallest candidate index list: exact article ID, smallest word bucket, or category bucket.
+    local candidates = nil
     local check_cat = category ~= nil
-    if has_text and by_id and text:match("^%d%d%d%.?%d%d%d%.?%d%d$") then
-        local hit = by_id[text:gsub("%.", "")]
-        source = hit and { hit } or {}
+    if has_text and text:match("^%d%d%d%.?%d%d%d%.?%d%d$") then
+        local hit = st.by_id[text:gsub("%.", "")]
+        candidates = hit and { hit } or {}
         has_text = false
-    elseif category and by_category and by_category[category] then
-        source = by_category[category]
-        check_cat = false
+    else
+        if category and st.by_category[category] then
+            candidates = st.by_category[category]
+            check_cat = false
+        end
+        if has_text then
+            -- Use the smallest posting list for any whole >=3-char alphanumeric word in the query.
+            for word in text:gmatch("[a-z0-9][a-z0-9][a-z0-9]+") do
+                local list = st.by_word[word]
+                if list and (not candidates or #list < #candidates) then
+                    candidates = list
+                    check_cat = category ~= nil
+                end
+            end
+        end
     end
+
+    local ids = st.ids
+    local names = st.names
+    local types_arr = st.types
+    local variants = st.variants
+    local paths = st.paths
+    local images = st.images
+    local bytes_arr = st.bytes
+    local ws, ds, hs = st.ws, st.ds, st.hs
+    local colors_arr = st.colors_arr
+    local urls = st.urls
+    local blobs = st.blobs
 
     local page = ccad.array()
     local total = 0
     local stop = offset + limit
     local sfind = string.find
 
-    for i = 1, #source do
-        local item = source[i]
+    local count = candidates and #candidates or st.n
+    for i = 1, count do
+        local idx = candidates and candidates[i] or i
         local ok = true
-        if check_cat and not has_segment(item.path, category) then
+        if check_cat and not has_segment(paths[idx], category) then
             ok = false
-        elseif color and not has_color(item.colors, color) then
+        elseif color and not has_color(colors_arr[idx], color) then
             ok = false
         elseif has_dims then
-            if (max_w and item.w and item.w > max_w)
-                or (max_d and item.d and item.d > max_d)
-                or (max_h and item.h and item.h > max_h)
+            local w, d, h = ws[idx], ds[idx], hs[idx]
+            if (max_w and w and w > max_w)
+                or (max_d and d and d > max_d)
+                or (max_h and h and h > max_h)
             then
                 ok = false
             end
         end
-        if ok and has_text and sfind(item.search_blob, text, 1, true) == nil then
+        if ok and has_text and sfind(blobs[idx], text, 1, true) == nil then
             ok = false
         end
         if ok then
             total = total + 1
             if total > offset and total <= stop then
                 local dims = {}
-                if item.w then dims.width = item.w end
-                if item.d then dims.depth = item.d end
-                if item.h then dims.height = item.h end
+                if ws[idx] then dims.width = ws[idx] end
+                if ds[idx] then dims.depth = ds[idx] end
+                if hs[idx] then dims.height = hs[idx] end
+                local kind = M.classify(paths[idx])
+                local v = variants[idx]
+                local tn = types_arr[idx]
                 page[#page + 1] = {
-                    id = item.id,
-                    name = item.name,
-                    subtitle = item.variant ~= "" and (item.type_name .. " — " .. item.variant) or item.type_name,
-                    kind = item.kind,
-                    article = M.format_article(item.id),
-                    bytes = item.bytes,
+                    id = ids[idx],
+                    name = names[idx],
+                    subtitle = v ~= "" and (tn .. " — " .. v) or tn,
+                    kind = kind,
+                    article = M.format_article(ids[idx]),
+                    bytes = bytes_arr[idx],
                     dimensions = dims,
-                    colors = ccad.array(item.colors),
-                    url = item.product_url,
-                    has_thumbnail = item.image ~= "",
+                    colors = ccad.array(colors_arr[idx]),
+                    url = urls[idx],
+                    has_thumbnail = images[idx] ~= "",
                 }
             end
         end
@@ -305,45 +404,52 @@ local function normalize_id(raw)
     return tostring(raw or ""):gsub("[^0-9]", "")
 end
 
-local function lookup_item(item_id)
+local function lookup_index(item_id)
     local st = load_catalog()
     local clean = normalize_id(item_id)
-    local item = st.by_id[clean] or st.by_id[tostring(item_id or "")]
-    if not item then
+    local idx = st.by_id[clean] or st.by_id[tostring(item_id or "")]
+    if not idx then
         error("unknown IKEA item id: " .. tostring(item_id))
     end
-    return item
+    return st, idx
 end
 
 local function prepare_load_args(item_id)
-    local item = lookup_item(item_id)
-    if not is_valid_sha256(item.hash) then
-        error("invalid model sha256 for IKEA item: " .. item.id)
+    local st, idx = lookup_index(item_id)
+    local id = st.ids[idx]
+    local hash = st.hashes[idx]
+    if not is_valid_sha256(hash) then
+        error("invalid model sha256 for IKEA item: " .. id)
     end
-    local article = M.format_article(item.id)
+    local article = M.format_article(id)
+    local name = st.names[idx]
+    local type_name = st.types[idx]
+    local variant = st.variants[idx]
+    local url = st.urls[idx]
+    local kind, ifc_class = M.classify(st.paths[idx])
     local prefix = base_prefix()
-    local model_url = prefix .. "/raw/" .. item.id:sub(1, 2) .. "/" .. item.id .. "/model.glb"
-    local cache_key = "models/" .. item.hash:sub(1, 2) .. "/" .. item.hash .. ".glb"
+    local model_url = prefix .. "/raw/" .. id:sub(1, 2) .. "/" .. id .. "/model.glb"
+    local cache_key = "models/" .. hash:sub(1, 2) .. "/" .. hash .. ".glb"
     local local_path = ccad.http.download(model_url, cache_key, {
-        sha256 = item.hash,
+        sha256 = hash,
         max_bytes = 64 * 1024 * 1024,
     })
     local props = {
         ArticleNumber = article,
-        ProductName = item.name,
-        TypeName = item.type_name,
-        ModelSha256 = item.hash,
+        ProductName = name,
+        TypeName = type_name,
+        ModelSha256 = hash,
     }
-    if item.variant ~= "" then props.Variant = item.variant end
-    if item.product_url ~= "" then props.ProductUrl = item.product_url end
-    if item.w then props.CatalogWidth = item.w end
-    if item.d then props.CatalogDepth = item.d end
-    if item.h then props.CatalogHeight = item.h end
-    return item, {
+    if variant ~= "" then props.Variant = variant end
+    if url ~= "" then props.ProductUrl = url end
+    if st.ws[idx] then props.CatalogWidth = st.ws[idx] end
+    if st.ds[idx] then props.CatalogDepth = st.ds[idx] end
+    if st.hs[idx] then props.CatalogHeight = st.hs[idx] end
+    return st, idx, {
         path = local_path,
-        name = item.name .. " " .. article,
-        kind = item.kind,
-        ifc_class = item.ifc_class,
+        name = name .. " " .. article,
+        kind = kind,
+        ifc_class = ifc_class,
         properties = { Pset_IkeaProduct = props },
     }
 end
@@ -353,7 +459,7 @@ ccad.catalog {
     load = function()
         local st = load_catalog()
         return {
-            total = #st.items,
+            total = st.n,
             snapshot = st.snapshot,
             categories = top_categories(st),
             colors = ccad.array(st.colors),
@@ -362,20 +468,23 @@ ccad.catalog {
     end,
     search = function(query)
         local st = load_catalog()
-        return M.filter_items(st.items, query or {}, st.by_category, st.by_id)
+        return M.filter_state(st, query or {})
     end,
     thumbnail = function(item_id)
         local st = load_catalog()
-        local item = st.by_id[item_id]
-        if not item or item.image == "" then
+        local idx = st.by_id[item_id]
+        if not idx then
             return nil
         end
-        local rel = item.image:gsub("^/+", "")
+        local rel = st.images[idx]
+        if rel == "" then
+            return nil
+        end
         local prefix = base_prefix()
         return ccad.http.download(prefix .. "/" .. rel, rel, { max_bytes = 2 * 1024 * 1024 })
     end,
     prepare = function(item_id)
-        local _, load_args = prepare_load_args(item_id)
+        local _, _, load_args = prepare_load_args(item_id)
         return {
             command = "gltf_component_load",
             args = load_args,
@@ -396,7 +505,7 @@ ccad.command {
     run = function()
         local st = load_catalog()
         return {
-            total = #st.items,
+            total = st.n,
             snapshot = st.snapshot,
             categories = top_categories(st),
         }
@@ -432,7 +541,7 @@ ccad.command {
             offset = args.offset or 0,
             limit = math.min(50, math.max(1, math.floor(tonumber(args.limit) or 20))),
         }
-        return M.filter_items(st.items, q, st.by_category, st.by_id)
+        return M.filter_state(st, q)
     end,
 }
 
@@ -458,9 +567,11 @@ ccad.command {
         },
     },
     run = function(args)
-        local item = lookup_item(args.id)
-        local article = M.format_article(item.id)
-        local comp_name = item.name .. " " .. article
+        local st, idx = lookup_index(args.id)
+        local id = st.ids[idx]
+        local name = st.names[idx]
+        local article = M.format_article(id)
+        local comp_name = name .. " " .. article
 
         -- Reuse an already-loaded component type of the same IKEA article when present.
         local type_id = nil
@@ -478,7 +589,7 @@ ccad.command {
         end
 
         if not type_id then
-            local _, load_args = prepare_load_args(item.id)
+            local _, _, load_args = prepare_load_args(id)
             local loaded = ccad.run("gltf_component_load", load_args)
             type_id = loaded.types and loaded.types[1] or nil
             comp_name = loaded.component or comp_name
@@ -486,13 +597,13 @@ ccad.command {
         end
 
         local out = {
-            id = item.id,
+            id = id,
             article = article,
-            name = item.name,
+            name = name,
             component = comp_name,
             type_id = type_id,
             reused = reused,
-            url = item.product_url,
+            url = st.urls[idx],
         }
         if faces then out.faces = faces end
         if type(args.position) == "table" and type_id then
