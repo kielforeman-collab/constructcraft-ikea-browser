@@ -6,11 +6,51 @@ local M = {}
 
 local catalog_state = nil
 
+local function is_valid_rev(rev)
+    return type(rev) == "string"
+        and rev ~= ""
+        and not rev:find("..", 1, true)
+        and rev:match("^[a-zA-Z0-9._-]+$") ~= nil
+end
+
+local function is_valid_chunk(name)
+    return type(name) == "string"
+        and not name:find("..", 1, true)
+        and name:match("^[a-zA-Z0-9._-]+%.json$") ~= nil
+end
+
+local function is_valid_sha256(h)
+    return type(h) == "string" and #h == 64 and h:match("^[0-9a-fA-F]+$") ~= nil
+end
+
+local function sanitize_ikea_url(url)
+    if type(url) ~= "string" then
+        return ""
+    end
+    if url:match("^https://www%.ikea%.com/") or url:match("^https://www%.ikea%.cn/") then
+        return url
+    end
+    return ""
+end
+
+local function sanitize_image_rel(image)
+    if type(image) ~= "string" or image == "" then
+        return ""
+    end
+    local rel = image:gsub("^/+", "")
+    if rel:find("..", 1, true) or rel:match("^[a-zA-Z0-9._/-]+$") == nil then
+        return ""
+    end
+    return rel
+end
+
 local function base_prefix()
     local base = (ccad.settings.base_url or "https://huggingface.co/datasets/T-K-233/ikea-furniture/resolve")
         :gsub("/+$", "")
     local rev = (ccad.settings.dataset_rev or "main"):gsub("^/+", ""):gsub("/+$", "")
-    if rev == "" then rev = "main" end
+    if not is_valid_rev(rev) then
+        rev = "main"
+    end
     return base .. "/" .. rev, rev
 end
 
@@ -46,17 +86,21 @@ function M.parse_row(row)
     local type_name = type(row[3]) == "string" and row[3] or ""
     local path = type(row[4]) == "table" and row[4] or {}
     local variant = type(row[5]) == "string" and row[5] or ""
-    local image = type(row[6]) == "string" and row[6] or ""
+    local image = sanitize_image_rel(row[6])
     local bytes = tonumber(row[8]) or 0
     local hash = type(row[9]) == "string" and row[9] or ""
     local dims = type(row[10]) == "table" and row[10] or {}
     local colors = type(row[11]) == "table" and row[11] or {}
-    local product_url = type(row[12]) == "string" and row[12] or ""
+    local product_url = sanitize_ikea_url(row[12])
     local kind, ifc_class = M.classify(path)
-    local search_blob = (name .. " " .. type_name .. " " .. variant .. " " .. id .. " " .. M.format_article(id)):lower()
+    local article = M.format_article(id)
+    local w = type(dims.width) == "number" and dims.width or nil
+    local d = type(dims.depth) == "number" and dims.depth or nil
+    local h = type(dims.height) == "number" and dims.height or nil
+    local search_blob = (name .. " " .. type_name .. " " .. variant .. " " .. id .. " " .. article):lower()
     return {
         id = id,
-        article = M.format_article(id),
+        article = article,
         name = name,
         type_name = type_name,
         path = path,
@@ -65,6 +109,9 @@ function M.parse_row(row)
         bytes = bytes,
         hash = hash,
         dimensions = dims,
+        w = w,
+        d = d,
+        h = h,
         colors = colors,
         product_url = product_url,
         kind = kind,
@@ -87,35 +134,46 @@ local function fetch_json_cached(url, cache_key, max_bytes)
 end
 
 local function load_catalog()
-    if catalog_state then
+    local prefix, rev = base_prefix()
+    if catalog_state and catalog_state.prefix == prefix then
         return catalog_state
     end
-    local prefix, rev = base_prefix()
-    local safe_rev = rev:gsub("[^a-zA-Z0-9._-]", "_")
     local manifest = fetch_json_cached(
         prefix .. "/data/manifest.json",
-        "catalog/" .. safe_rev .. "/manifest.json",
+        "catalog/" .. rev .. "/manifest.json",
         4 * 1024 * 1024
     )
     local items = {}
     local by_id = {}
+    local by_category = {}
     local color_set = {}
-    local chunks = manifest.chunks or {}
+    local chunks = type(manifest.chunks) == "table" and manifest.chunks or {}
     for _, chunk_name in ipairs(chunks) do
-        local rows = fetch_json_cached(
-            prefix .. "/data/" .. chunk_name,
-            "catalog/" .. safe_rev .. "/" .. chunk_name,
-            16 * 1024 * 1024
-        )
-        if type(rows) == "table" then
-            for _, row in ipairs(rows) do
-                local item = M.parse_row(row)
-                if #item.id == 8 then
-                    items[#items + 1] = item
-                    by_id[item.id] = item
-                    for _, c in ipairs(item.colors) do
-                        if type(c) == "string" and c ~= "" then
-                            color_set[c] = true
+        if is_valid_chunk(chunk_name) then
+            local rows = fetch_json_cached(
+                prefix .. "/data/" .. chunk_name,
+                "catalog/" .. rev .. "/" .. chunk_name,
+                16 * 1024 * 1024
+            )
+            if type(rows) == "table" then
+                for _, row in ipairs(rows) do
+                    local item = M.parse_row(row)
+                    if item.id:match("^%d%d%d%d%d%d%d%d$") and is_valid_sha256(item.hash) then
+                        items[#items + 1] = item
+                        by_id[item.id] = item
+                        local top = item.path[1]
+                        if type(top) == "string" and top ~= "" then
+                            local bucket = by_category[top]
+                            if not bucket then
+                                bucket = {}
+                                by_category[top] = bucket
+                            end
+                            bucket[#bucket + 1] = item
+                        end
+                        for _, c in ipairs(item.colors) do
+                            if type(c) == "string" and c ~= "" then
+                                color_set[c] = true
+                            end
                         end
                     end
                 end
@@ -128,22 +186,21 @@ local function load_catalog()
     end
     table.sort(colors)
     catalog_state = {
+        prefix = prefix,
         rev = rev,
         snapshot = type(manifest.snapshot) == "string" and manifest.snapshot or "",
         categories = type(manifest.categories) == "table" and manifest.categories or {},
         colors = colors,
         items = items,
         by_id = by_id,
+        by_category = by_category,
     }
     return catalog_state
 end
 
-local function path_starts_with(path, prefix_code)
-    if type(prefix_code) ~= "string" or prefix_code == "" then
-        return true
-    end
-    for _, seg in ipairs(path) do
-        if seg == prefix_code then
+local function has_segment(path, code)
+    for i = 1, #path do
+        if path[i] == code then
             return true
         end
     end
@@ -151,67 +208,78 @@ local function path_starts_with(path, prefix_code)
 end
 
 local function has_color(colors, wanted)
-    if type(wanted) ~= "string" or wanted == "" then
-        return true
-    end
-    for _, c in ipairs(colors) do
-        if c == wanted then
+    for i = 1, #colors do
+        if colors[i] == wanted then
             return true
         end
     end
     return false
 end
 
-local function fits_dimensions(dims, max_w, max_d, max_h)
-    local w = type(dims.width) == "number" and dims.width or nil
-    local d = type(dims.depth) == "number" and dims.depth or nil
-    local h = type(dims.height) == "number" and dims.height or nil
-    if max_w and w and w > max_w then return false end
-    if max_d and d and d > max_d then return false end
-    if max_h and h and h > max_h then return false end
-    return true
-end
-
-function M.filter_items(items, query)
+function M.filter_items(items, query, by_category)
     local raw_text = type(query.text) == "string" and query.text or ""
     local text = raw_text:lower():match("^%s*(.-)%s*$")
-    local category = type(query.category) == "string" and query.category or nil
-    local color = type(query.color) == "string" and query.color or nil
+    local has_text = text ~= ""
+    local category = type(query.category) == "string" and query.category ~= "" and query.category or nil
+    local color = type(query.color) == "string" and query.color ~= "" and query.color or nil
     local max_w = tonumber(query.max_width)
     local max_d = tonumber(query.max_depth)
     local max_h = tonumber(query.max_height)
+    local has_dims = max_w ~= nil or max_d ~= nil or max_h ~= nil
     local offset = math.max(0, math.floor(tonumber(query.offset) or 0))
     local limit = math.min(200, math.max(1, math.floor(tonumber(query.limit) or 60)))
 
-    local matches = {}
-    for _, item in ipairs(items) do
-        if path_starts_with(item.path, category)
-            and has_color(item.colors, color)
-            and fits_dimensions(item.dimensions, max_w, max_d, max_h)
-            and (text == "" or item.search_blob:find(text, 1, true) ~= nil)
-        then
-            matches[#matches + 1] = item
-        end
+    -- Fast path: use the prebuilt top-level category bucket when available.
+    local source = items
+    local check_cat = category ~= nil
+    if category and by_category and by_category[category] then
+        source = by_category[category]
+        check_cat = false
     end
 
     local page = ccad.array()
-    local stop = math.min(#matches, offset + limit)
-    for i = offset + 1, stop do
-        local it = matches[i]
-        page[#page + 1] = {
-            id = it.id,
-            name = it.name,
-            subtitle = it.variant ~= "" and (it.type_name .. " — " .. it.variant) or it.type_name,
-            kind = it.kind,
-            article = it.article,
-            bytes = it.bytes,
-            dimensions = it.dimensions,
-            colors = ccad.array(it.colors),
-            url = it.product_url,
-            has_thumbnail = it.image ~= "",
-        }
+    local total = 0
+    local stop = offset + limit
+    local sfind = string.find
+
+    for i = 1, #source do
+        local item = source[i]
+        local ok = true
+        if check_cat and not has_segment(item.path, category) then
+            ok = false
+        elseif color and not has_color(item.colors, color) then
+            ok = false
+        elseif has_dims then
+            if (max_w and item.w and item.w > max_w)
+                or (max_d and item.d and item.d > max_d)
+                or (max_h and item.h and item.h > max_h)
+            then
+                ok = false
+            end
+        end
+        if ok and has_text and sfind(item.search_blob, text, 1, true) == nil then
+            ok = false
+        end
+        if ok then
+            total = total + 1
+            if total > offset and total <= stop then
+                page[#page + 1] = {
+                    id = item.id,
+                    name = item.name,
+                    subtitle = item.variant ~= "" and (item.type_name .. " — " .. item.variant) or item.type_name,
+                    kind = item.kind,
+                    article = item.article,
+                    bytes = item.bytes,
+                    dimensions = item.dimensions,
+                    colors = ccad.array(item.colors),
+                    url = item.product_url,
+                    has_thumbnail = item.image ~= "",
+                }
+            end
+        end
     end
-    return { total = #matches, items = page }
+
+    return { total = total, items = page }
 end
 
 local function top_categories(st)
@@ -239,6 +307,9 @@ local function prepare_load_args(item_id)
     if not item then
         error("unknown IKEA item id: " .. tostring(item_id))
     end
+    if not is_valid_sha256(item.hash) then
+        error("invalid model sha256 for IKEA item: " .. item.id)
+    end
     local prefix = base_prefix()
     local model_url = prefix .. "/raw/" .. item.id:sub(1, 2) .. "/" .. item.id .. "/model.glb"
     local cache_key = "models/" .. item.hash:sub(1, 2) .. "/" .. item.hash .. ".glb"
@@ -254,9 +325,9 @@ local function prepare_load_args(item_id)
     }
     if item.variant ~= "" then props.Variant = item.variant end
     if item.product_url ~= "" then props.ProductUrl = item.product_url end
-    if type(item.dimensions.width) == "number" then props.CatalogWidth = item.dimensions.width end
-    if type(item.dimensions.depth) == "number" then props.CatalogDepth = item.dimensions.depth end
-    if type(item.dimensions.height) == "number" then props.CatalogHeight = item.dimensions.height end
+    if item.w then props.CatalogWidth = item.w end
+    if item.d then props.CatalogDepth = item.d end
+    if item.h then props.CatalogHeight = item.h end
     return item, {
         path = local_path,
         name = item.name .. " " .. item.article,
@@ -280,7 +351,7 @@ ccad.catalog {
     end,
     search = function(query)
         local st = load_catalog()
-        return M.filter_items(st.items, query or {})
+        return M.filter_items(st.items, query or {}, st.by_category)
     end,
     thumbnail = function(item_id)
         local st = load_catalog()
@@ -350,7 +421,7 @@ ccad.command {
             offset = args.offset or 0,
             limit = math.min(50, math.max(1, math.floor(tonumber(args.limit) or 20))),
         }
-        return M.filter_items(st.items, q)
+        return M.filter_items(st.items, q, st.by_category)
     end,
 }
 

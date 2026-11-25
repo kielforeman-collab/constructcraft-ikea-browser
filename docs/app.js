@@ -172,7 +172,11 @@ function renderCatalog() {
   });
 
   if (filtered.length === 0) {
-    grid.innerHTML = `<div class="catalog-empty">No matching sample items. Try clearing your filter or searching for "KALLAX" or "002.758.48".</div>`;
+    grid.replaceChildren();
+    const empty = document.createElement("div");
+    empty.className = "catalog-empty";
+    empty.textContent = 'No matching sample items. Try clearing your filter or searching for "KALLAX" or "002.758.48".';
+    grid.appendChild(empty);
     return;
   }
 
@@ -180,40 +184,51 @@ function renderCatalog() {
     selectedId = filtered[0].id;
   }
 
-  grid.innerHTML = filtered
-    .map(
-      (item) => `
-      <button
-        type="button"
-        class="item-card${item.id === selectedId ? " is-selected" : ""}"
-        data-item-id="${item.id}"
-        aria-pressed="${item.id === selectedId}"
-      >
-        <div class="item-thumb">
-          <img src="${item.thumb}" alt="${item.name} — ${item.type}" />
-        </div>
-        <div class="item-name">${item.name}</div>
-        <div class="item-sub">${item.type}</div>
-        <div class="item-meta-row">
-          <span>${item.article}</span>
-          <span>${item.kind}</span>
-        </div>
-      </button>
-    `
-    )
-    .join("");
+  const frag = document.createDocumentFragment();
+  for (const item of filtered) {
+    const isSel = item.id === selectedId;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = isSel ? "item-card is-selected" : "item-card";
+    btn.dataset.itemId = item.id;
+    btn.setAttribute("aria-pressed", String(isSel));
 
-  grid.querySelectorAll(".item-card").forEach((card) => {
-    card.addEventListener("click", () => {
-      selectedId = card.dataset.itemId;
+    const thumbWrap = document.createElement("div");
+    thumbWrap.className = "item-thumb";
+    const img = document.createElement("img");
+    img.src = item.thumb;
+    img.alt = `${item.name} — ${item.type}`;
+    thumbWrap.appendChild(img);
+
+    const nameEl = document.createElement("div");
+    nameEl.className = "item-name";
+    nameEl.textContent = item.name;
+
+    const subEl = document.createElement("div");
+    subEl.className = "item-sub";
+    subEl.textContent = item.type;
+
+    const metaRow = document.createElement("div");
+    metaRow.className = "item-meta-row";
+    const artSpan = document.createElement("span");
+    artSpan.textContent = item.article;
+    const kindSpan = document.createElement("span");
+    kindSpan.textContent = item.kind;
+    metaRow.append(artSpan, kindSpan);
+
+    btn.append(thumbWrap, nameEl, subEl, metaRow);
+    btn.addEventListener("click", () => {
+      selectedId = item.id;
       grid.querySelectorAll(".item-card").forEach((c) => {
-        const isSel = c.dataset.itemId === selectedId;
-        c.classList.toggle("is-selected", isSel);
-        c.setAttribute("aria-pressed", String(isSel));
+        const active = c.dataset.itemId === selectedId;
+        c.classList.toggle("is-selected", active);
+        c.setAttribute("aria-pressed", String(active));
       });
       renderInspector();
     });
-  });
+    frag.appendChild(btn);
+  }
+  grid.replaceChildren(frag);
 
   renderInspector();
 }
